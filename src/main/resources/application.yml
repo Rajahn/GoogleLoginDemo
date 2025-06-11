@@ -1,3 +1,17 @@
 google:
-  client:
-    id: 509032240923-mk5t01ce7gcng2ock2o397mfla0db9n9.apps.googleusercontent.com
+  auth:
+    client:
+      id: ${GOOGLE_CLIENT_ID:509032240923-mk5t01ce7gcng2ock2o397mfla0db9n9.apps.googleusercontent.com}
+      secret: ${GOOGLE_CLIENT_SECRET:}
+    redirect:
+      uri: ${BACKEND_URL:http://localhost:8080}/auth/google-callback
+    frontend:
+      url: ${FRONTEND_URL:http://localhost:8080}
+
+# Sa-Token配置
+sa-token:
+  # token名称
+  token-name: Authorization
+  # token有效期
+  timeout: 2592000
+  # token临时有效期

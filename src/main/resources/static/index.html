@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Google Login Demo</title>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -34,20 +33,17 @@
             border-radius: 4px;
             cursor: pointer;
         }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Google账号一键登录演示</h1>
         
-        <div id="g_id_onload"
-            data-client_id="509032240923-mk5t01ce7gcng2ock2o397mfla0db9n9.apps.googleusercontent.com"
-            data-callback="handleGoogleCallback"
-            data-auto_prompt="false"
-            data-ux_mode="popup">
-        </div>
-        
-        <div class="g_id_signin" data-type="standard"></div>
+        <button id="google-login-btn">使用Google账号登录</button>
         
         <div id="user-info">
             <h3>用户信息</h3>
@@ -67,96 +63,114 @@
         const getUserInfoBtn = document.getElementById('get-user-info');
         const logoutBtn = document.getElementById('logout');
         const checkLoginBtn = document.getElementById('check-login');
+        const googleLoginBtn = document.getElementById('google-login-btn');
 
-        // Google登录回调
-        function handleGoogleCallback(response) {
-            // 发送ID Token到后端验证
-            fetch('/auth/google-login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    token: response.credential
-                })
-            })
-            .then(res => res.json())
-            .then(data => {
+        // 处理Google登录
+        googleLoginBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/auth/google-auth-url');
+                const data = await response.json();
+                
                 if (data.code === 200) {
-                    token = data.data.tokenValue;
-                    localStorage.setItem('token', token);
-                    alert('登录成功');
-                    checkLoginStatus();
+                    window.location.href = data.data;
                 } else {
-                    alert('登录失败: ' + data.msg);
+                    alert('获取认证URL失败: ' + data.msg);
                 }
-            })
-            .catch(err => {
+            } catch (err) {
                 console.error('Error:', err);
                 alert('登录出错，请查看控制台');
-            });
-        }
+            }
+        });
+
+        // 检查URL参数
+        window.addEventListener('load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const newToken = urlParams.get('token');
+            const error = urlParams.get('error');
+            
+            if (error) {
+                alert('登录失败: ' + error);
+                return;
+            }
+            
+            if (newToken) {
+                token = newToken;
+                localStorage.setItem('token', token);
+                // 清除URL参数
+                window.history.replaceState({}, document.title, window.location.pathname);
+                checkLoginStatus();
+            } else if (token) {
+                checkLoginStatus();
+            }
+        });
 
         // 检查登录状态
-        function checkLoginStatus() {
-            fetch('/user/isLogin', {
-                headers: {
-                    'token': token || ''
-                }
-            })
-            .then(res => res.json())
-            .then(data => {
+        async function checkLoginStatus() {
+            try {
+                const response = await fetch('/user/isLogin', {
+                    headers: {
+                        'Authorization': token || ''
+                    }
+                });
+                const data = await response.json();
+                
                 if (data.code === 200) {
                     const isLogin = data.msg.includes('true');
                     getUserInfoBtn.style.display = isLogin ? 'inline-block' : 'none';
                     logoutBtn.style.display = isLogin ? 'inline-block' : 'none';
                     alert(data.msg);
                 }
-            });
+            } catch (err) {
+                console.error('Error:', err);
+                alert('检查登录状态失败');
+            }
         }
 
         // 获取用户信息
-        getUserInfoBtn.addEventListener('click', () => {
-            fetch('/user/info', {
-                headers: {
-                    'token': token || ''
-                }
-            })
-            .then(res => res.json())
-            .then(data => {
+        getUserInfoBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/user/info', {
+                    headers: {
+                        'Authorization': token || ''
+                    }
+                });
+                const data = await response.json();
+                
                 if (data.code === 200) {
                     userInfoDiv.style.display = 'block';
                     userDataPre.textContent = JSON.stringify(data.data, null, 2);
                 } else {
                     alert('获取用户信息失败: ' + data.msg);
                 }
-            });
+            } catch (err) {
+                console.error('Error:', err);
+                alert('获取用户信息失败');
+            }
         });
 
         // 退出登录
-        logoutBtn.addEventListener('click', () => {
-            fetch('/auth/logout', {
-                headers: {
-                    'token': token || ''
-                }
-            })
-            .then(() => {
+        logoutBtn.addEventListener('click', async () => {
+            try {
+                await fetch('/auth/logout', {
+                    headers: {
+                        'Authorization': token || ''
+                    }
+                });
+                
                 localStorage.removeItem('token');
                 token = null;
                 userInfoDiv.style.display = 'none';
                 getUserInfoBtn.style.display = 'none';
                 logoutBtn.style.display = 'none';
                 alert('已退出登录');
-            });
+            } catch (err) {
+                console.error('Error:', err);
+                alert('退出登录失败');
+            }
         });
 
         // 检查登录状态按钮
         checkLoginBtn.addEventListener('click', checkLoginStatus);
-
-        // 如果有token，初始检查登录状态
-        if (token) {
-            checkLoginStatus();
-        }
     </script>
 </body>
 </html> 
